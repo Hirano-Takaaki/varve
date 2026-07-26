@@ -1,4 +1,5 @@
 # varve
+VHDX And Repos, Versioned Efficiently
 
 Windows の開発環境とプロジェクトツリーを、内容アドレスの差分として S3 互換
 ストレージ経由で配布する単一バイナリの CLI。
