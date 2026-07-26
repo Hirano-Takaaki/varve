@@ -151,6 +151,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		fs.StringVar(&o.SessionToken, "session-token", env("AWS_SESSION_TOKEN", ""), "temporary credential token")
 		fs.BoolVar(&o.PathStyle, "path-style", envBool("VARVE_PATH_STYLE", true), "use path-style S3 URLs")
 		fs.BoolVar(&o.Insecure, "insecure", false, "allow plain HTTP endpoint")
+		fs.StringVar(&o.CACertFile, "ca-cert", env("VARVE_CA_CERT", ""), "PEM bundle trusted in addition to the system store")
 		return sf
 	}
 	newClient := func(sf *storeFlags) (*store.Client, error) {
@@ -400,6 +401,9 @@ func (sf *storeFlags) resolve(cfg *config.File, envLookup func(string) string) (
 		if !set["insecure"] && r.Insecure {
 			o.Insecure = true
 		}
+		if o.CACertFile == "" {
+			o.CACertFile = r.CACert
+		}
 	}
 	if o.Prefix == "" {
 		o.Prefix = "varve"
@@ -436,6 +440,7 @@ func runRemote(args []string, stdout, stderr io.Writer) error {
 		pathStyle := fs.Bool("path-style", true, "use path-style S3 URLs")
 		insecure := fs.Bool("insecure", false, "allow plain HTTP endpoint")
 		compression := fs.String("compression", "", "default chunk compression for push: gzip or zstd")
+		caCert := fs.String("ca-cert", "", "PEM bundle trusted in addition to the system store")
 		setUsage(fs, "varve remote add [options] --bucket <bucket> <name> <endpoint>")
 		if err := fs.Parse(args[1:]); err != nil {
 			return wrapParseError(err)
@@ -465,7 +470,7 @@ func runRemote(args []string, stdout, stderr io.Writer) error {
 		r := config.Remote{
 			Name: name, Endpoint: endpoint, Bucket: *bucket,
 			Prefix: *prefix, Region: *region, Insecure: *insecure,
-			Compression: *compression,
+			Compression: *compression, CACert: *caCert,
 		}
 		explicitPathStyle := false
 		fs.Visit(func(f *flag.Flag) {
@@ -502,6 +507,9 @@ func runRemote(args []string, stdout, stderr io.Writer) error {
 			}
 			if r.Compression != "" {
 				extra += " compression=" + r.Compression
+			}
+			if r.CACert != "" {
+				extra += " ca-cert=" + r.CACert
 			}
 			fmt.Fprintf(stdout, "%s\t%s\tbucket=%s%s\n", r.Name, r.Endpoint, r.Bucket, extra)
 		}

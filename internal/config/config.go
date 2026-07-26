@@ -22,6 +22,9 @@ type Remote struct {
 	Insecure  bool   `json:"insecure,omitempty"`
 	// Compression は push の既定コーデック（gzip / zstd）。空は gzip。
 	Compression string `json:"compression,omitempty"`
+	// CACert は私有 CA の PEM へのパス。LAN 内の自前ストレージを
+	// HTTPS で使うときに指定する。証明書そのものは保存しない。
+	CACert string `json:"ca_cert,omitempty"`
 }
 
 type File struct {
