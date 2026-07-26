@@ -1,0 +1,51 @@
+version: 2
+
+project_name: varve
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  # Windows 専用。VHDX のマウント・デタッチは Windows API に依存し、
+  # 非 Windows ではスタブがエラーを返すだけなので配布物も出さない
+  # （ビルドが壊れていないことの検証は CI の linux ジョブが担う）。
+  - id: varve
+    main: ./cmd/varve
+    binary: varve
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      # cmd/varve/main.go の var version を埋める。未設定時は buildinfo に
+      # フォールバックするので go install でもバージョンが出る。
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+release:
+  draft: false
+  prerelease: auto
