@@ -2,4 +2,4 @@ module github.com/Hirano-Takaaki/varve
 
 go 1.24
 
-require github.com/klauspost/compress v1.19.1 // indirect
+require github.com/klauspost/compress v1.19.1
