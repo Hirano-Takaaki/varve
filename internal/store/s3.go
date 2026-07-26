@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/xml"
 	"errors"
@@ -12,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -22,6 +25,30 @@ type Options struct {
 	Endpoint, Bucket, Prefix, Region   string
 	AccessKey, SecretKey, SessionToken string
 	PathStyle, Insecure                bool
+	// CACertFile は私有 CA が発行した証明書を使うエンドポイント向けの PEM。
+	// LAN 内の自前ストレージを HTTPS で使うために、マシン全体の信頼ストアを
+	// 変更せずに済ませる。
+	CACertFile string
+}
+
+// certPoolWith はシステムの信頼ストアに PEM バンドルを足したプールを返す。
+// システム側を置き換えないのは、私有 CA のエンドポイントと公開 CA の
+// エンドポイント（AWS S3 など）を 1 つの設定で併用できるようにするため。
+func certPoolWith(pemFile string) (*x509.CertPool, error) {
+	raw, err := os.ReadFile(pemFile)
+	if err != nil {
+		return nil, fmt.Errorf("read CA bundle: %w", err)
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		// Windows の一部環境などで取得できないことがある。私有 CA だけの
+		// プールでも、その CA のエンドポイントには接続できる。
+		pool = x509.NewCertPool()
+	}
+	if !pool.AppendCertsFromPEM(raw) {
+		return nil, fmt.Errorf("no certificates found in %s", pemFile)
+	}
+	return pool, nil
 }
 
 type Client struct {
@@ -53,6 +80,16 @@ func New(o Options) (*Client, error) {
 	transport.MaxIdleConns = 64
 	transport.MaxIdleConnsPerHost = 32
 	transport.ForceAttemptHTTP2 = true
+	if o.CACertFile != "" {
+		pool, err := certPoolWith(o.CACertFile)
+		if err != nil {
+			return nil, err
+		}
+		if transport.TLSClientConfig == nil {
+			transport.TLSClientConfig = &tls.Config{}
+		}
+		transport.TLSClientConfig.RootCAs = pool
+	}
 	return &Client{
 		endpoint: u, bucket: o.Bucket, prefix: strings.Trim(o.Prefix, "/"),
 		region: o.Region, accessKey: o.AccessKey, secretKey: o.SecretKey,

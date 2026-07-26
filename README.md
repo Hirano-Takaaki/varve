@@ -96,6 +96,8 @@ remote が 1 つだけならそれが既定になる。複数あるときは `--
 優先順位は **フラグ > 環境変数（`VARVE_ENDPOINT` 等）> remote 設定**で、
 環境変数が入っていれば remote 設定は使われない（CI での上書き用）。
 
+私有 CA を使う LAN 内ストレージには `--ca-cert` で PEM を渡す（`VARVE_CA_CERT`
+や `remote add --ca-cert` でも指定でき、システムの信頼ストアに追加する形で使う）。
 HTTP のエンドポイントは `--insecure` を明示したときだけ許可する。
 virtual-hosted style が必要なサービスでは `--path-style=false` を指定する。
 
